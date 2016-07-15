@@ -57,17 +57,36 @@ $recurse = ConvertTo-Bool (Get-AnsibleParam -obj $params -name "recurse" -defaul
 $rm = ConvertTo-Bool (Get-AnsibleParam -obj $params -name "rm" -default "false")
 
 If ($ext -eq ".zip" -And $recurse -eq $false) {
-    Try {
-        $shell = New-Object -ComObject Shell.Application
-        $zipPkg = $shell.NameSpace([IO.Path]::GetFullPath($src))
-        $destPath = $shell.NameSpace([IO.Path]::GetFullPath($dest))
-        # 20 means do not display any dialog (4) and overwrite any file (16)
-        $destPath.CopyHere($zipPkg.Items(), 20)
-        $result.changed = $true
+    If (-Not (Get-WindowsFeature -Name 'Server-Gui-Shell')) {
+        # unzip for windows server core.
+        Try {
+            If ($(Get-WindowsFeature -Name Net-Framework-45-Core).installed -eq $False) {
+                Install-WindowsFeature Net-Framework-45-Core
+            }
+            #Load the assembly
+            [System.Reflection.Assembly]::LoadWithPartialName("System.IO.Compression.FileSystem") | Out-Null
+            #Unzip the file
+            [System.IO.Compression.ZipFile]::ExtractToDirectory($src, $dest)
+            $result.changed = $true
+        }
+        Catch {
+            $err_msg = $_.Exception.Message
+            Fail-Json $result "Error unzipping $src to $dest! Msg: $err_msg"
+        }
     }
-    Catch {
-        $err_msg = $_.Exception.Message
-        Fail-Json $result "Error unzipping $src to $dest! Msg: $err_msg"
+    Else {
+        Try {
+            $shell = New-Object -ComObject Shell.Application
+            $zipPkg = $shell.NameSpace([IO.Path]::GetFullPath($src))
+            $destPath = $shell.NameSpace([IO.Path]::GetFullPath($dest))
+            # 20 means do not display any dialog (4) and overwrite any file (16)
+            $destPath.CopyHere($zipPkg.Items(), 20)
+            $result.changed = $true
+        }
+        Catch {
+            $err_msg = $_.Exception.Message
+            Fail-Json $result "Error unzipping $src to $dest! Msg: $err_msg"
+        }
     }
 }
 # Requires PSCX
