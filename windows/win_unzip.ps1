@@ -60,9 +60,6 @@ If ($ext -eq ".zip" -And $recurse -eq $false) {
     If (-Not (Get-WindowsFeature -Name 'Server-Gui-Shell')) {
         # unzip for windows server core.
         Try {
-            If ($(Get-WindowsFeature -Name Net-Framework-45-Core).installed -eq $False) {
-                Install-WindowsFeature Net-Framework-45-Core
-            }
             #Load the assembly
             [System.Reflection.Assembly]::LoadWithPartialName("System.IO.Compression.FileSystem") | Out-Null
             #Unzip the file
